@@ -1,0 +1,1481 @@
+openapi: 3.1.0
+info:
+  title: GitHub Profile Enhancer API
+  description: |
+    GitHub 个人形象增强器 API - 用于生成和管理 GitHub 用户个人资料、头像、README 等内容的 REST API。
+
+    ## 安全特性
+    - HTTPS 强制传输
+    - Bearer Token 认证
+    - 请求签名支持
+    - Rate Limit 限制
+
+    ## 性能优化
+    - 游标分页
+    - 异步任务处理
+    - 响应缓存
+    - 批量操作支持
+
+    ## 监控
+    - 性能指标响应头
+    - 请求追踪
+    - 详细错误报告
+  version: 1.0.0
+  contact:
+    name: API Support
+    url: https://github.com/github-profile-enhancer
+    email: support@example.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.example.com/api/v1
+    description: Production Server (HTTPS Required)
+  - url: https://staging-api.example.com/api/v1
+    description: Staging Server
+
+security:
+  - BearerAuth: []
+  - RequestSignature: []
+
+tags:
+  - name: Authentication
+    description: 认证相关接口
+  - name: User
+    description: 用户信息相关接口
+  - name: Bio
+    description: 简介生成相关接口
+  - name: Image
+    description: 图像生成相关接口
+  - name: README
+    description: README 生成相关接口
+  - name: Sync
+    description: 同步功能相关接口
+  - name: Export
+    description: 导出功能相关接口
+  - name: Batch
+    description: 批量操作接口
+  - name: Webhook
+    description: GitHub Webhook 处理
+  - name: Monitoring
+    description: 监控和健康检查
+
+# ==================== 组件定义 ====================
+components:
+  # 安全方案
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT Token 用于认证
+    RequestSignature:
+      type: apiKey
+      in: header
+      name: X-Signature
+      description: |
+        HMAC-SHA256 请求签名，格式: `timestamp=...;signature=...`
+        签名算法: HMAC-SHA256(timestamp + request_body, api_secret)
+
+  # 通用响应头
+  headers:
+    RateLimitLimit:
+      description: 请求限制总数
+      schema:
+        type: integer
+        example: 1000
+    RateLimitRemaining:
+      description: 剩余请求数
+      schema:
+        type: integer
+        example: 999
+    RateLimitReset:
+      description: 限流重置时间（Unix 时间戳）
+      schema:
+        type: integer
+        example: 1706536800
+    X-Request-Id:
+      description: 请求唯一标识符
+      schema:
+        type: string
+        format: uuid
+        example: "550e8400-e29b-41d4-a716-446655440000"
+    X-Response-Time:
+      description: 响应时间（毫秒）
+      schema:
+        type: integer
+        example: 125
+    X-Cache-Status:
+      description: 缓存状态
+      schema:
+        type: string
+        enum: [HIT, MISS, BYPASS, EXPIRED]
+        example: "HIT"
+    X-Retry-After:
+      description: 建议重试时间（秒）
+      schema:
+        type: integer
+        example: 60
+    Strict-Transport-Security:
+      description: HSTS 响应头
+      schema:
+        type: string
+        example: "max-age=31536000; includeSubDomains; preload"
+
+  # 通用参数
+  parameters:
+    Cursor:
+      name: cursor
+      in: query
+      description: 游标分页标记
+      schema:
+        type: string
+        format: base64
+    PageSize:
+      name: page_size
+      in: query
+      description: 每页数量（游标分页）
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    Fields:
+      name: fields
+      in: query
+      description: 按需返回字段（逗号分隔）
+      schema:
+        type: string
+        example: "id,name,description,language,stars"
+
+  # 通用 Schema
+  schemas:
+    # 基础响应结构
+    ApiResponse:
+      type: object
+      required:
+        - success
+      properties:
+        success:
+          type: boolean
+          description: 请求是否成功
+        data:
+          type: object
+          description: 响应数据（成功时）
+        error:
+          $ref: '#/components/schemas/ErrorResponse'
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+
+    # 错误响应
+    ErrorResponse:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: 错误代码
+          enum:
+            - VALIDATION_FAILED
+            - INVALID_REQUEST
+            - UNAUTHORIZED
+            - INVALID_TOKEN
+            - TOKEN_EXPIRED
+            - FORBIDDEN
+            - NOT_FOUND
+            - RATE_LIMIT_EXCEEDED
+            - EXTERNAL_API_ERROR
+            - GITHUB_API_ERROR
+            - OPENAI_API_ERROR
+            - INTERNAL_ERROR
+            - DATABASE_ERROR
+            - SIGNATURE_INVALID
+            - WEBHOOK_UNVERIFIED
+        message:
+          type: string
+          description: 错误描述信息
+        details:
+          type: object
+          description: 错误详细信息
+          properties:
+            field:
+              type: string
+              description: 具体字段错误
+            retryable:
+              type: boolean
+              description: 是否可重试
+            retryAfter:
+              type: integer
+              description: 建议重试时间（秒）
+            externalCode:
+              type: string
+              description: 外部服务错误代码
+        stackTrace:
+          type: string
+          description: 堆栈跟踪（仅开发环境）
+
+    # 响应元数据
+    ResponseMeta:
+      type: object
+      required:
+        - timestamp
+        - requestId
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          description: ISO 8601 时间戳
+        requestId:
+          type: string
+          format: uuid
+          description: 请求 ID
+        version:
+          type: string
+          description: API 版本
+
+    # 分页响应（游标分页）
+    CursorPagination:
+      type: object
+      properties:
+        next_cursor:
+          type: string
+          format: base64
+          description: 下一页游标
+          nullable: true
+        prev_cursor:
+          type: string
+          format: base64
+          description: 上一页游标
+          nullable: true
+        has_more:
+          type: boolean
+          description: 是否有更多数据
+        total:
+          type: integer
+          description: 总数（估算，非精确）
+
+    # 异步任务响应
+    AsyncJobResponse:
+      type: object
+      properties:
+        jobId:
+          type: string
+          format: uuid
+          description: 任务 ID
+        status:
+          type: string
+          enum: [pending, processing, completed, failed]
+          description: 任务状态
+        estimatedTime:
+          type: integer
+          description: 预计完成时间（秒）
+        createdAt:
+          type: string
+          format: date-time
+          description: 创建时间
+        callbackUrl:
+          type: string
+          format: uri
+          description: WebSocket 回调地址
+
+    # 用户信息
+    UserInfo:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        githubId:
+          type: string
+        username:
+          type: string
+        displayName:
+          type: string
+        email:
+          type: string
+          format: email
+        bio:
+          type: string
+          nullable: true
+        location:
+          type: string
+          nullable: true
+        blog:
+          type: string
+          format: uri
+          nullable: true
+        company:
+          type: string
+          nullable: true
+        twitterUsername:
+          type: string
+          nullable: true
+        avatarUrl:
+          type: string
+          format: uri
+        followers:
+          type: integer
+        following:
+          type: integer
+        publicRepos:
+          type: integer
+        stars:
+          type: integer
+        languages:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # 仓库信息
+    Repository:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        fullName:
+          type: string
+        description:
+          type: string
+          nullable: true
+        language:
+          type: string
+          nullable: true
+        stars:
+          type: integer
+        forks:
+          type: integer
+        isFork:
+          type: boolean
+        topics:
+          type: array
+          items:
+            type: string
+        homepage:
+          type: string
+          format: uri
+          nullable: true
+        htmlUrl:
+          type: string
+          format: uri
+        updatedAt:
+          type: string
+          format: date-time
+
+    # 语言统计
+    LanguageStats:
+      type: object
+      properties:
+        languages:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              bytes:
+                type: integer
+              percentage:
+                type: number
+                format: float
+              repos:
+                type: integer
+        cachedAt:
+          type: string
+          format: date-time
+          description: 缓存时间
+
+    # 用户统计
+    UserStats:
+      type: object
+      properties:
+        followers:
+          type: integer
+        following:
+          type: integer
+        publicRepos:
+          type: integer
+        totalCommits:
+          type: integer
+        totalPullRequests:
+          type: integer
+        totalIssues:
+          type: integer
+        totalStarsReceived:
+          type: integer
+        totalStarsGiven:
+          type: integer
+        contributionGraph:
+          type: object
+          properties:
+            total:
+              type: integer
+            lastYear:
+              type: integer
+            longestStreak:
+              type: integer
+            currentStreak:
+              type: integer
+        cachedAt:
+          type: string
+          format: date-time
+          description: 缓存时间
+
+    # WebSocket 连接信息
+    WebSocketConnection:
+      type: object
+      properties:
+        wsUrl:
+          type: string
+          format: uri
+        connectionToken:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+
+# ==================== 路径定义 ====================
+paths:
+  # ==================== 认证接口 ====================
+  /auth/validate:
+    post:
+      tags:
+        - Authentication
+      summary: 验证 GitHub Token
+      description: |
+        验证用户提供的 GitHub Token 是否有效，并返回用户基本信息和权限范围。
+
+        **安全要求**：
+        - 建议使用请求签名验证
+        - Token 将在后端加密存储
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+              properties:
+                token:
+                  type: string
+                  description: GitHub Personal Access Token
+                  example: "ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                signature:
+                  type: string
+                  description: 请求签名（可选，推荐）
+      responses:
+        '200':
+          description: 验证成功
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+            X-Response-Time:
+              $ref: '#/components/headers/X-Response-Time'
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          isValid:
+                            type: boolean
+                          userInfo:
+                            $ref: '#/components/schemas/UserInfo'
+                          scopes:
+                            type: array
+                            items:
+                              type: string
+                          jwtToken:
+                            type: string
+                            description: 生成的 JWT Token
+                          expiresIn:
+                            type: integer
+                            description: Token 过期时间（秒）
+        '400':
+          description: 请求参数错误
+        '401':
+          description: Token 无效
+          headers:
+            X-Retry-After:
+              $ref: '#/components/headers/X-Retry-After'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      error:
+                        type: object
+                        properties:
+                          code:
+                            type: string
+                            enum: [INVALID_TOKEN, TOKEN_EXPIRED]
+                          message:
+                            type: string
+                          details:
+                            type: object
+                            properties:
+                              githubErrorCode:
+                                type: integer
+                              retryable:
+                                type: boolean
+        '429':
+          description: 请求频率超限
+
+  # ==================== 用户信息接口 ====================
+  /user/info:
+    get:
+      tags:
+        - User
+      summary: 获取完整用户信息
+      description: |
+        获取用户完整信息，支持缓存和字段过滤。
+
+        **缓存策略**：
+        - 默认缓存时间：5 分钟
+        - 使用 `?refresh=true` 强制刷新缓存
+      parameters:
+        - $ref: '#/components/parameters/Fields'
+        - name: refresh
+          in: query
+          schema:
+            type: boolean
+            default: false
+          description: 是否强制刷新缓存
+        - name: include
+          in: query
+          description: 包含额外信息
+          schema:
+            type: string
+            enum: [basic, repos, languages, stats, all]
+            default: basic
+      responses:
+        '200':
+          description: 成功
+          headers:
+            X-Cache-Status:
+              $ref: '#/components/headers/X-Cache-Status'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/UserInfo'
+
+  /user/repos:
+    get:
+      tags:
+        - User
+      summary: 获取用户仓库列表（游标分页）
+      description: |
+        使用游标分页获取用户仓库列表，支持字段过滤。
+
+        **分页方式**：游标分页（Cursor-based Pagination）
+        - `cursor`: 前一页返回的 next_cursor
+        - `page_size`: 每页数量 (1-100)
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/Fields'
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [updated, stars, forks, created, name]
+            default: updated
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [all, owner, member]
+            default: all
+        - name: direction
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          repos:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Repository'
+                          pagination:
+                            $ref: '#/components/schemas/CursorPagination'
+
+  /user/languages:
+    get:
+      tags:
+        - User
+      summary: 获取用户语言统计
+      description: |
+        获取用户编程语言统计，数据使用缓存。
+
+        **缓存策略**：
+        - 缓存时间：1 小时
+        - 通过 GitHub Webhook 自动失效
+      responses:
+        '200':
+          description: 成功
+          headers:
+            X-Cache-Status:
+              $ref: '#/components/headers/X-Cache-Status'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/LanguageStats'
+
+  /user/stats:
+    get:
+      tags:
+        - User
+      summary: 获取用户统计数据
+      description: |
+        获取用户贡献统计数据，使用缓存避免频繁计算。
+
+        **缓存策略**：
+        - 缓存时间：30 分钟
+        - 通过 GitHub Webhook 自动失效
+      responses:
+        '200':
+          description: 成功
+          headers:
+            X-Cache-Status:
+              $ref: '#/components/headers/X-Cache-Status'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/UserStats'
+
+  # ==================== 简介生成接口（异步） ====================
+  /bio/generate:
+    post:
+      tags:
+        - Bio
+      summary: 生成个人简介（异步）
+      description: |
+        使用 OpenAI 生成个人简介，采用异步处理避免长时间阻塞。
+
+        **处理流程**：
+        1. 提交请求，返回异步任务 ID
+        2. 通过 WebSocket 接收实时进度
+        3. 完成后获取结果
+
+        **WebSocket 事件**：
+        - `progress`: 生成进度 (0-100)
+        - `completed`: 生成完成
+        - `failed`: 生成失败
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - config
+              properties:
+                userInfo:
+                  $ref: '#/components/schemas/UserInfo'
+                skills:
+                  type: object
+                  properties:
+                    languages:
+                      type: array
+                      items:
+                        type: object
+                    frameworks:
+                      type: array
+                    tools:
+                      type: array
+                projects:
+                  type: array
+                  maxItems: 10
+                  items:
+                    type: object
+                config:
+                  type: object
+                  required:
+                    - language
+                    - style
+                    - length
+                  properties:
+                    language:
+                      type: string
+                      enum: [zh, en, bilingual]
+                    style:
+                      type: string
+                      enum: [professional, casual, humorous, minimal]
+                    length:
+                      type: string
+                      enum: [short, medium, long]
+                    includeStats:
+                      type: boolean
+                      default: true
+                    includeSkills:
+                      type: boolean
+                      default: true
+                    includeProjects:
+                      type: boolean
+                      default: true
+                async:
+                  type: boolean
+                  default: true
+                  description: 是否异步处理（默认 true）
+      responses:
+        '202':
+          description: 异步任务已创建
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AsyncJobResponse'
+        '200':
+          description: 同步处理完成（仅当 async=false）
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          bio:
+                            type: string
+                          wordCount:
+                            type: integer
+                          characterCount:
+                            type: integer
+
+  /bio/templates:
+    get:
+      tags:
+        - Bio
+      summary: 获取简介模板列表
+      parameters:
+        - name: style
+          in: query
+          schema:
+            type: string
+        - name: language
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功
+
+  /bio/jobs/{jobId}:
+    get:
+      tags:
+        - Bio
+      summary: 获取异步任务状态
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          jobId:
+                            type: string
+                          status:
+                            type: string
+                            enum: [pending, processing, completed, failed]
+                          progress:
+                            type: integer
+                            minimum: 0
+                            maximum: 100
+                          result:
+                            type: object
+                            nullable: true
+                          error:
+                            type: object
+                            nullable: true
+
+  # ==================== WebSocket 连接 ====================
+  /ws/connect:
+    post:
+      tags:
+        - Monitoring
+      summary: 建立 WebSocket 连接
+      description: |
+        建立用于接收异步任务通知的 WebSocket 连接。
+
+        **订阅格式**：
+        ```json
+        {
+          "subscribe": ["job:abc123", "user:550e8400"]
+        }
+        ```
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                subscriptions:
+                  type: array
+                  items:
+                    type: string
+                  description: 订阅的主题
+      responses:
+        '200':
+          description: 连接信息
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebSocketConnection'
+
+  # ==================== 图像生成接口（异步） ====================
+  /image/generate-avatar:
+    post:
+      tags:
+        - Image
+      summary: 生成头像（异步）
+      description: |
+        使用 OpenAI DALL-E 生成头像，异步处理。
+
+        **生成时间**：约 10-30 秒
+        **成本**：$0.04/张
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - config
+              properties:
+                config:
+                  type: object
+                  properties:
+                    style:
+                      type: string
+                      enum: [realistic, cartoon, pixel, illustration, minimal]
+                    gender:
+                      type: string
+                      enum: [male, female, neutral, undefined]
+                    ageGroup:
+                      type: string
+                      enum: [young, adult, mature]
+                    accessories:
+                      type: array
+                      items:
+                        type: string
+                    clothing:
+                      type: string
+                    expression:
+                      type: string
+                    backgroundColor:
+                      type: string
+                      pattern: ^#[0-9A-Fa-f]{6}$
+                    size:
+                      type: string
+                userInfo:
+                  type: object
+      responses:
+        '202':
+          description: 异步任务已创建
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AsyncJobResponse'
+
+  /image/styles:
+    get:
+      tags:
+        - Image
+      summary: 获取可用风格列表
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [avatar, illustration]
+      responses:
+        '200':
+          description: 成功
+
+  # ==================== README 生成接口 ====================
+  /readme/generate:
+    post:
+      tags:
+        - README
+      summary: 生成 README
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - userInfo
+                - config
+              properties:
+                userInfo:
+                  $ref: '#/components/schemas/UserInfo'
+                bio:
+                  type: string
+                avatarUrl:
+                  type: string
+                  format: uri
+                skills:
+                  type: array
+                  items:
+                    type: string
+                projects:
+                  type: array
+                  maxItems: 10
+                  items:
+                    type: object
+                config:
+                  type: object
+                  properties:
+                    sections:
+                      type: array
+                    theme:
+                      type: string
+                      enum: [light, dark, auto]
+                    showStats:
+                      type: boolean
+                    showVisitors:
+                      type: boolean
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          readme:
+                            type: string
+                          wordCount:
+                            type: integer
+                          lineCount:
+                            type: integer
+
+  /readme/preview:
+    post:
+      tags:
+        - README
+      summary: 预览 README
+      requestBody:
+        $ref: '#/paths/~1readme~1generate/post/requestBody'
+      responses:
+        '200':
+          description: 成功
+
+  # ==================== 批量操作接口 ====================
+  /batch/users:
+    post:
+      tags:
+        - Batch
+      summary: 批量获取用户信息
+      description: |
+        批量获取多个用户的基本信息，减少请求次数。
+
+        **限制**：每次最多 50 个用户
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - usernames
+              properties:
+                usernames:
+                  type: array
+                  items:
+                    type: string
+                  maxItems: 50
+                  minItems: 1
+                fields:
+                  type: string
+                  description: 按需返回字段
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          users:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/UserInfo'
+                          failed:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                username:
+                                  type: string
+                                error:
+                                  type: string
+
+  /batch/repos:
+    post:
+      tags:
+        - Batch
+      summary: 批量获取仓库信息
+      description: 批量获取多个仓库的详细信息
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - repos
+              properties:
+                repos:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - owner
+                      - repo
+                    properties:
+                      owner:
+                        type: string
+                      repo:
+                        type: string
+                  maxItems: 50
+      responses:
+        '200':
+          description: 成功
+
+  # ==================== 同步接口 ====================
+  /sync/profile:
+    post:
+      tags:
+        - Sync
+      summary: 同步个人资料到 GitHub
+      description: |
+        将生成的个人资料同步到 GitHub 个人资料。
+
+        **并发控制**：使用 optimistic locking 避免冲突
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                bio:
+                  type: string
+                location:
+                  type: string
+                blog:
+                  type: string
+                  format: uri
+                company:
+                  type: string
+                twitterUsername:
+                  type: string
+      responses:
+        '200':
+          description: 同步成功
+        '409':
+          description: 资料已被其他客户端修改，需要重新获取
+          headers:
+            X-Conflict-Token:
+              description: 冲突标记
+              schema:
+                type: string
+
+  /sync/readme:
+    post:
+      tags:
+        - Sync
+      summary: 同步 README 到 GitHub
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - owner
+                - repo
+                - content
+              properties:
+                owner:
+                  type: string
+                repo:
+                  type: string
+                content:
+                  type: string
+                commitMessage:
+                  type: string
+                branch:
+                  type: string
+                  default: "main"
+      responses:
+        '200':
+          description: 同步成功
+
+  /sync/pull-request:
+    post:
+      tags:
+        - Sync
+      summary: 创建 Pull Request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '201':
+          description: PR 创建成功
+
+  # ==================== 导出接口 ====================
+  /export/local:
+    post:
+      tags:
+        - Export
+      summary: 导出为本地文件
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - filename
+                - content
+              properties:
+                filename:
+                  type: string
+                content:
+                  type: string
+                format:
+                  type: string
+                  enum: [markdown, html, json]
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          downloadUrl:
+                            type: string
+                            format: uri
+                          expiresAt:
+                            type: string
+                            format: date-time
+                            description: 过期时间（1 小时后）
+
+  # ==================== GitHub Webhook 处理 ====================
+  /webhook/github:
+    post:
+      tags:
+        - Webhook
+      summary: 处理 GitHub Webhook
+      description: |
+        接收 GitHub Webhook 事件，自动失效相关缓存。
+
+        **支持的事件**：
+        - `push`: 仓库更新，失效语言/统计缓存
+        - `create/delete`: 仓库创建/删除
+        - `fork`: Fork 事件
+
+        **安全验证**：验证 X-Hub-Signature-256 签名
+      security: []  # Webhook 不需要 Bearer Token
+      parameters:
+        - name: X-Hub-Signature-256
+          in: header
+          description: GitHub 签名验证
+          required: true
+          schema:
+            type: string
+        - name: X-GitHub-Event
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: [push, create, delete, fork, watch]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Webhook 处理成功
+        '401':
+          description: 签名验证失败
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      error:
+                        type: object
+                        properties:
+                          code:
+                            type: string
+                            enum: [WEBHOOK_UNVERIFIED]
+                          message:
+                            type: string
+                            example: "GitHub webhook signature verification failed"
+
+  # ==================== 健康检查接口 ====================
+  /health:
+    get:
+      tags:
+        - Monitoring
+      summary: 健康检查
+      description: |
+        检查系统各服务状态。
+
+        **响应时间要求**：< 100ms
+      security: []
+      responses:
+        '200':
+          description: 系统健康
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy, degraded, unhealthy]
+                  services:
+                    type: object
+                    properties:
+                      database:
+                        type: object
+                        properties:
+                          status:
+                            type: string
+                            enum: [up, down, degraded]
+                          latency_ms:
+                            type: integer
+                          connection_pool:
+                            type: object
+                            properties:
+                              active:
+                                type: integer
+                              idle:
+                                type: integer
+                              max:
+                                type: integer
+                      redis:
+                        type: object
+                        properties:
+                          status:
+                            type: string
+                          latency_ms:
+                            type: integer
+                          memory_usage_mb:
+                            type: integer
+                      github:
+                        type: object
+                        properties:
+                          status:
+                            type: string
+                          rate_limit_remaining:
+                            type: integer
+                      openai:
+                        type: object
+                        properties:
+                          status:
+                            type: string
+                          latency_ms:
+                            type: integer
+                      queue:
+                        type: object
+                        properties:
+                          status:
+                            type: string
+                          pending_jobs:
+                            type: integer
+                          avg_wait_time_ms:
+                            type: integer
+                  metrics:
+                    type: object
+                    properties:
+                      uptime_seconds:
+                        type: integer
+                      memory_usage_mb:
+                        type: integer
+                      cpu_usage_percent:
+                        type: number
+                      p99_response_time_ms:
+                        type: integer
+                      p95_response_time_ms:
+                        type: integer
+                  version:
+                    type: string
+                  timestamp:
+                    type: string
+                    format: date-time
+        '503':
+          description: 系统不健康
+
+  /metrics:
+    get:
+      tags:
+        - Monitoring
+      summary: Prometheus 指标
+      description: 返回 Prometheus 格式的指标数据
+      security: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: |
+                  # HELP api_requests_total Total API requests
+                  # TYPE api_requests_total counter
+                  api_requests_total{endpoint="/api/v1/user/info",method="GET",status="200"} 12345
+
+  # ==================== 版本信息 ====================
+  /version:
+    get:
+      tags:
+        - Monitoring
+      summary: 获取版本信息
+      security: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  version:
+                    type: string
+                  buildDate:
+                    type: string
+                    format: date-time
+                  gitCommit:
+                    type: string
+                  apiVersion:
+                    type: string
+                  environment:
+                    type: string
+                    enum: [production, staging, development]
+
+# ==================== 全局响应头 ====================
+x-global-headers:
+  - Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+  - X-Content-Type-Options: nosniff
+  - X-Frame-Options: DENY
+  - X-XSS-Protection: 1; mode=block
+  - Content-Security-Policy: default-src 'self'
+
+# ==================== 重试策略说明 ====================
+x-retry-strategy:
+  description: |
+    API 支持指数退避重试策略：
+
+    | 错误代码 | 是否可重试 | 初始延迟 | 最大延迟 | 最大重试次数 |
+    |---------|-----------|---------|---------|-------------|
+    | RATE_LIMIT_EXCEEDED | 是 | X-Retry-After | 3600s | 无限制 |
+    | EXTERNAL_API_ERROR | 是 | 1s | 32s | 3 |
+    | GITHUB_API_ERROR | 是 | 2s | 64s | 3 |
+    | OPENAI_API_ERROR | 是 | 5s | 120s | 2 |
+    | DATABASE_ERROR | 否 | - | - | - |
+    | VALIDATION_FAILED | 否 | - | - | - |
