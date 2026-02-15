@@ -1,1 +1,0 @@
-{"version":3,"file":"validate-token.dto.js","sourceRoot":"","sources":["../../../../../src/modules/auth/dto/validate-token.dto.ts"],"names":[],"mappings":";;;;;;;;;;;;AAAA,6CAA8C;AAC9C,qDAAuD;AAEvD,MAAa,gBAAgB;CAQ5B;AARD,4CAQC;AADC;IANC,IAAA,qBAAW,EAAC;QACX,WAAW,EAAE,8BAA8B;QAC3C,OAAO,EAAE,0CAA0C;KACpD,CAAC;IACD,IAAA,0BAAQ,GAAE;IACV,IAAA,4BAAU,GAAE;;+CACC"}
