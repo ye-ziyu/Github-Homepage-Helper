@@ -22,7 +22,10 @@ export class BioService {
       data: {
         userId,
         generationType: 'bio',
-        inputConfig: generateBioDto,
+        inputConfig: {
+          userInfo: generateBioDto.userInfo,
+          config: generateBioDto.config
+        } as any,
         status: 'pending',
         taskId: jobId,
       },

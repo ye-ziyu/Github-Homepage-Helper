@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { ReadmeGenerateResult, ReadmeConfig } from '../types';
-import { readmeApi } from '../api';
+import { readmeApi, syncApi } from '../api';
+import { useAuthStore } from './authStore';
 
 interface ReadmeState {
   generatedReadme: string | null;
@@ -31,7 +32,8 @@ export const useReadmeStore = create<ReadmeState>((set, get) => ({
   generateReadme: async (config: ReadmeConfig) => {
     set({ isLoading: true, error: null });
     try {
-      const result = await readmeApi.generate({ config });
+      const { userInfo } = useAuthStore.getState();
+      const result = await readmeApi.generate({ config, userInfo: userInfo! });
       set({
         generatedReadme: result.readme,
         wordCount: result.wordCount,
@@ -49,7 +51,8 @@ export const useReadmeStore = create<ReadmeState>((set, get) => ({
   preview: async (config: ReadmeConfig) => {
     set({ isLoading: true, error: null });
     try {
-      const result = await readmeApi.preview({ config });
+      const { userInfo } = useAuthStore.getState();
+      const result = await readmeApi.preview({ config, userInfo: userInfo! });
       set({
         previewReadme: result.readme,
         wordCount: result.wordCount,
@@ -68,7 +71,7 @@ export const useReadmeStore = create<ReadmeState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const templates = await readmeApi.getTemplates();
-      set({ templates, isLoading: false });
+      set({ templates: templates as any[], isLoading: false });
     } catch (error: any) {
       set({
         isLoading: false,
@@ -86,7 +89,7 @@ export const useReadmeStore = create<ReadmeState>((set, get) => ({
 
     set({ isLoading: true, error: null });
     try {
-      await readmeApi.readme({
+      await syncApi.readme({
         owner,
         repo,
         content: generatedReadme,

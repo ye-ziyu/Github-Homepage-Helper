@@ -55,7 +55,7 @@ export const useBioStore = create<BioState>((set, get) => ({
     try {
       const status = await bioApi.getJobStatus(jobId);
       set({
-        jobStatus: status,
+        jobStatus: { ...status, createdAt: new Date().toISOString(), status: status.status as 'pending' | 'processing' | 'completed' | 'failed' },
         progress: status.progress,
       });
 
@@ -86,7 +86,7 @@ export const useBioStore = create<BioState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const templates = await bioApi.getTemplates();
-      set({ templates, isLoading: false });
+      set({ templates: templates as any[], isLoading: false });
     } catch (error: any) {
       set({
         isLoading: false,

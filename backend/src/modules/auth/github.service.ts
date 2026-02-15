@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import axios, { AxiosInstance } from 'axios';
 
-interface GitHubUserInfo {
+export interface GitHubUserInfo {
   id: number;
   login: string;
   name?: string;

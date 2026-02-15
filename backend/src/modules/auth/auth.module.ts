@@ -5,6 +5,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { GitHubService } from './github.service';
 import { PrismaModule } from '../../common/prisma/prisma.module';
 import { RedisModule } from '../../common/redis/redis.module';
 
@@ -25,7 +26,7 @@ import { RedisModule } from '../../common/redis/redis.module';
     RedisModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
-  exports: [AuthService, JwtStrategy],
+  providers: [AuthService, JwtStrategy, GitHubService],
+  exports: [AuthService, JwtStrategy, GitHubService],
 })
 export class AuthModule {}

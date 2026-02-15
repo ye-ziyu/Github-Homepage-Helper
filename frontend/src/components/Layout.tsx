@@ -1,5 +1,5 @@
 import { Layout as AntLayout, Menu, Avatar, Dropdown, Button } from 'antd';
-import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   HomeOutlined,
   UserOutlined,
@@ -12,7 +12,7 @@ import { useAuthStore } from '../stores/authStore';
 
 const { Header, Content, Sider } = AntLayout;
 
-const Layout = () => {
+const Layout = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated, userInfo, logout } = useAuthStore();
@@ -122,7 +122,7 @@ const Layout = () => {
           </Sider>
         )}
         <Content style={{ padding: '24px', background: '#f5f5f5', minHeight: 'calc(100vh - 64px)' }}>
-          <Outlet />
+          {children}
         </Content>
       </AntLayout>
     </AntLayout>

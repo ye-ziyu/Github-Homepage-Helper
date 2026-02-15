@@ -22,7 +22,10 @@ export class ImageService {
       data: {
         userId,
         generationType: 'avatar',
-        inputConfig: generateAvatarDto,
+        inputConfig: {
+          userInfo: generateAvatarDto.userInfo,
+          config: generateAvatarDto.config
+        } as any,
         status: 'pending',
         taskId: jobId,
       },
