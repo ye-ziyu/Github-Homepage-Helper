@@ -99,6 +99,9 @@ export interface BioConfig {
   includeStats?: boolean;
   includeSkills?: boolean;
   includeProjects?: boolean;
+  identity?: string;
+  workplace?: string;
+  customPrompt?: string;
 }
 
 export interface BioGenerateRequest {
@@ -123,8 +126,10 @@ export interface AsyncJobResponse {
 
 export interface BioGenerateResult {
   bio: string;
+  shortBio: string;
   wordCount: number;
   characterCount: number;
+  shortBioCharacterCount: number;
 }
 
 // Image Generation Types

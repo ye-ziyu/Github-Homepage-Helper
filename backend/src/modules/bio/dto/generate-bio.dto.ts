@@ -26,6 +26,12 @@ export class GenerateBioDto {
       language: 'zh',
       style: 'professional',
       length: 'medium',
+      includeStats: true,
+      includeSkills: true,
+      includeProjects: true,
+      identity: '学生',
+      workplace: '北京大学',
+      customPrompt: '后端开发学习者，AI coding练习中',
     },
   })
   @IsObject()
@@ -36,6 +42,9 @@ export class GenerateBioDto {
     includeStats?: boolean;
     includeSkills?: boolean;
     includeProjects?: boolean;
+    identity?: string;
+    workplace?: string;
+    customPrompt?: string;
   };
 
   @ApiProperty({ default: true, description: 'Process asynchronously' })

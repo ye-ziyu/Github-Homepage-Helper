@@ -1,22 +1,29 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Form, Input, Button, Typography, Space, Alert } from 'antd';
+import { Card, Form, Input, Button, Typography, Space, Alert, Radio, Select } from 'antd';
 import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons';
 import { useAuthStore } from '../stores/authStore';
+import { useBioStore } from '../stores/bioStore';
+import { useUserStore } from '../stores/userStore';
 import { syncApi } from '../api';
 
 const { Title, Paragraph } = Typography;
 
 const InfoConfirmPage = () => {
   const navigate = useNavigate();
-  const { userInfo } = useAuthStore();
+  const { generatedShortBio, shortBioLanguage, setShortBioLanguage, bioOption, setBioOption } = useBioStore();
+  const { userInfo, fetchUserInfo } = useUserStore();
   const [form] = Form.useForm();
+
+  useEffect(() => {
+    // Fetch latest user info from GitHub API to ensure original bio is up to date
+    fetchUserInfo(true);
+  }, [fetchUserInfo]);
 
   useEffect(() => {
     if (userInfo) {
       form.setFieldsValue({
         displayName: userInfo.displayName,
-        bio: userInfo.bio,
         location: userInfo.location,
         blog: userInfo.blog,
         company: userInfo.company,
@@ -25,13 +32,62 @@ const InfoConfirmPage = () => {
     }
   }, [userInfo, form]);
 
+  useEffect(() => {
+    if (bioOption === 'generated' && generatedShortBio) {
+      // Extract the selected language part
+      const parsedBio = parseShortBio(generatedShortBio);
+      form.setFieldsValue({ bio: shortBioLanguage === 'zh' ? parsedBio.zh : parsedBio.en || generatedShortBio });
+    }
+  }, [bioOption, generatedShortBio, shortBioLanguage, form]);
+
   const handleSubmit = async (values: any) => {
     try {
-      await syncApi.profile(values);
+      // Remove displayName from values as it's not allowed in the backend DTO
+      const { displayName, ...profileValues } = values;
+      await syncApi.profile(profileValues);
+      // Refresh user info from GitHub to ensure dashboard shows latest bio
+      await fetchUserInfo(true);
       navigate('/dashboard');
     } catch (error: any) {
       console.error('Failed to update profile:', error);
     }
+  };
+
+  const handleBioOptionChange = (e: any) => {
+    const value = e.target.value;
+    setBioOption(value);
+    
+    if (value === 'generated' && generatedShortBio) {
+      // Extract the selected language part
+      const parsedBio = parseShortBio(generatedShortBio);
+      form.setFieldsValue({ bio: shortBioLanguage === 'zh' ? parsedBio.zh : parsedBio.en || generatedShortBio });
+    } else if (value === 'original' && userInfo) {
+      form.setFieldsValue({ bio: userInfo.bio });
+    }
+  };
+
+  const handleLanguageOptionChange = (value: string) => {
+    setShortBioLanguage(value as 'zh' | 'en');
+    
+    if (bioOption === 'generated' && generatedShortBio) {
+      // Extract the selected language part
+      const parsedBio = parseShortBio(generatedShortBio);
+      form.setFieldsValue({ bio: value === 'zh' ? parsedBio.zh : parsedBio.en || generatedShortBio });
+    }
+  };
+
+  const parseShortBio = (shortBio: string) => {
+    if (!shortBio) return { zh: '', en: '' };
+    
+    const parts = shortBio.split('\n\n');
+    if (parts.length === 2) {
+      return {
+        zh: parts[0].trim(),
+        en: parts[1].trim()
+      };
+    }
+    
+    return { zh: shortBio, en: '' };
   };
 
   if (!userInfo) {
@@ -40,13 +96,19 @@ const InfoConfirmPage = () => {
 
   return (
     <div style={{ maxWidth: 800, margin: '0 auto' }}>
-      <Button
-        icon={<ArrowLeftOutlined />}
-        onClick={() => navigate('/dashboard')}
-        style={{ marginBottom: 16 }}
-      >
-        返回仪表板
-      </Button>
+      <Space style={{ marginBottom: 16 }}>
+        <Button
+          icon={<ArrowLeftOutlined />}
+          onClick={() => navigate('/dashboard')}
+        >
+          返回仪表板
+        </Button>
+        <Button
+          onClick={() => navigate('/bio')}
+        >
+          返回生成简介
+        </Button>
+      </Space>
 
       <Card>
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
@@ -63,6 +125,43 @@ const InfoConfirmPage = () => {
             type="info"
             showIcon
           />
+
+          {/* Bio Comparison Section */}
+          {generatedShortBio && (
+            <Card title="简介选择" style={{ marginBottom: 16 }}>
+              <Space direction="vertical" style={{ width: '100%', marginBottom: 16 }}>
+                <Select
+                  value={shortBioLanguage}
+                  onChange={handleLanguageOptionChange}
+                  style={{ width: 120 }}
+                  options={[
+                    { value: 'zh', label: '中文' },
+                    { value: 'en', label: '英文' },
+                  ]}
+                />
+                <Radio.Group value={bioOption} onChange={handleBioOptionChange}>
+                  <Space direction="vertical" style={{ width: '100%' }}>
+                    <Radio value="original">
+                      <div style={{ padding: '8px', border: '1px solid #f0f0f0', borderRadius: '4px' }}>
+                        <strong>原始简介：</strong>
+                        <div style={{ marginTop: '4px', minHeight: '40px' }}>
+                          {userInfo.bio || '无'}
+                        </div>
+                      </div>
+                    </Radio>
+                    <Radio value="generated">
+                      <div style={{ padding: '8px', border: '1px solid #f0f0f0', borderRadius: '4px' }}>
+                        <strong>生成简介：</strong>
+                        <div style={{ marginTop: '4px', minHeight: '40px' }}>
+                          {shortBioLanguage === 'zh' ? parseShortBio(generatedShortBio).zh : parseShortBio(generatedShortBio).en || generatedShortBio}
+                        </div>
+                      </div>
+                    </Radio>
+                  </Space>
+                </Radio.Group>
+              </Space>
+            </Card>
+          )}
 
           <Form
             form={form}

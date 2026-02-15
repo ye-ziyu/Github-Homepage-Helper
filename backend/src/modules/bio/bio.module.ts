@@ -5,6 +5,7 @@ import { BioService } from './bio.service';
 import { BioQueueProcessor } from './queues/bio-queue.processor';
 import { PrismaModule } from '../../common/prisma/prisma.module';
 import { RedisModule } from '../../common/redis/redis.module';
+import { TranslationModule } from '../../common/translation/translation.module';
 import { UserModule } from '../user/user.module';
 import { AuthModule } from '../auth/auth.module';
 
@@ -12,6 +13,7 @@ import { AuthModule } from '../auth/auth.module';
   imports: [
     PrismaModule,
     RedisModule,
+    TranslationModule,
     UserModule,
     AuthModule,
     BullModule.registerQueue({

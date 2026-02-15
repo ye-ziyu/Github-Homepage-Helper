@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Card,
@@ -10,6 +10,7 @@ import {
   Alert,
   Input,
   Radio,
+  Checkbox,
   Progress,
   message,
 } from 'antd';
@@ -17,29 +18,35 @@ import {
   ArrowLeftOutlined,
   ThunderboltOutlined,
   CheckCircleOutlined,
+  CopyOutlined,
+  FileTextOutlined,
+  GlobalOutlined,
 } from '@ant-design/icons';
 import { useAuthStore } from '../stores/authStore';
 import { useBioStore } from '../stores/bioStore';
-import { BioConfig, BioStyle, BioLanguage, BioLength } from '../types';
+import { BioConfig } from '../types';
 
 const { Title, Paragraph } = Typography;
 
 const BioPage = () => {
   const navigate = useNavigate();
   const { userInfo } = useAuthStore();
-  const { generateBio, generatedBio, isLoading, error, progress, clearError } = useBioStore();
+  const { generateBio, generatedBio, generatedShortBio, isLoading, error, progress, clearError, shortBioLanguage, setShortBioLanguage } = useBioStore();
   const [form] = Form.useForm();
   const [customPrompt, setCustomPrompt] = useState('');
 
-  const handleGenerate = async (values: any) => {
+  const handleGenerate = async (values) => {
     clearError();
-    const config: BioConfig = {
+    const config = {
       language: values.language,
       style: values.style,
       length: values.length,
       includeStats: values.includeStats,
       includeSkills: values.includeSkills,
       includeProjects: values.includeProjects,
+      identity: values.identity,
+      workplace: values.workplace,
+      customPrompt: customPrompt,
     };
 
     await generateBio(config);
@@ -57,6 +64,38 @@ const BioPage = () => {
     navigate('/info-confirm');
   };
 
+  const parseShortBio = (shortBio) => {
+    if (!shortBio) return { zh: '', en: '' };
+    
+    const parts = shortBio.split('\n\n');
+    if (parts.length === 2) {
+      return {
+        zh: parts[0].trim(),
+        en: parts[1].trim()
+      };
+    }
+    
+    if (shortBio.includes('我是')) {
+      return {
+        zh: shortBio,
+        en: ''
+      };
+    } else if (shortBio.includes('I\'m')) {
+      return {
+        zh: '',
+        en: shortBio
+      };
+    }
+    
+    return { zh: shortBio, en: '' };
+  };
+
+  const getCurrentShortBio = () => {
+    if (!generatedShortBio) return '';
+    const parsed = parseShortBio(generatedShortBio);
+    return shortBioLanguage === 'zh' ? parsed.zh : parsed.en;
+  };
+
   return (
     <div style={{ maxWidth: 800, margin: '0 auto' }}>
       <Button
@@ -68,7 +107,6 @@ const BioPage = () => {
       </Button>
 
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
-        {/* Bio Config */}
         <Card title="生成个人简介">
           <Form
             form={form}
@@ -81,6 +119,8 @@ const BioPage = () => {
               includeStats: true,
               includeSkills: true,
               includeProjects: true,
+              identity: '',
+              workplace: '',
             }}
           >
             <Form.Item
@@ -124,16 +164,28 @@ const BioPage = () => {
               />
             </Form.Item>
 
+            <Form.Item label="身份（可选）" name="identity">
+              <Input
+                placeholder="例如：学生、开发者、研究员等"
+              />
+            </Form.Item>
+
+            <Form.Item label="工作/学习地点（可选）" name="workplace">
+              <Input
+                placeholder="例如：北京大学、Google等"
+              />
+            </Form.Item>
+
             <Form.Item label="包含内容">
               <Space direction="vertical">
                 <Form.Item name="includeStats" valuePropName="checked" noStyle>
-                  <Button>统计数据</Button>
+                  <Checkbox>统计数据</Checkbox>
                 </Form.Item>
                 <Form.Item name="includeSkills" valuePropName="checked" noStyle>
-                  <Button>技能</Button>
+                  <Checkbox>技能</Checkbox>
                 </Form.Item>
                 <Form.Item name="includeProjects" valuePropName="checked" noStyle>
-                  <Button>项目</Button>
+                  <Checkbox>项目</Checkbox>
                 </Form.Item>
               </Space>
             </Form.Item>
@@ -162,7 +214,6 @@ const BioPage = () => {
           </Form>
         </Card>
 
-        {/* Progress */}
         {isLoading && (
           <Card>
             <Space direction="vertical" size="middle" style={{ width: '100%' }}>
@@ -172,7 +223,6 @@ const BioPage = () => {
           </Card>
         )}
 
-        {/* Error */}
         {error && (
           <Alert
             message="生成失败"
@@ -184,36 +234,93 @@ const BioPage = () => {
           />
         )}
 
-        {/* Result */}
         {generatedBio && !isLoading && (
-          <Card
-            title="生成的简介"
-            extra={
-              <Button
-                type="primary"
-                icon={<CheckCircleOutlined />}
-                onClick={handleSyncToGitHub}
+          <Space direction="vertical" style={{ width: '100%' }}>
+            <Card
+              title="生成的简介"
+              extra={
+                <Space>
+                  <Button
+                    type="default"
+                    icon={<CopyOutlined />}
+                    onClick={() => {
+                      navigator.clipboard.writeText(generatedBio);
+                      message.success('简介已复制到剪贴板');
+                    }}
+                  >
+                    复制
+                  </Button>
+                  <Button
+                    type="default"
+                    icon={<FileTextOutlined />}
+                    onClick={() => {
+                      navigate('/readme');
+                    }}
+                  >
+                    制作 Readme
+                  </Button>
+                </Space>
+              }
+            >
+              <Alert
+                message="生成成功"
+                type="success"
+                showIcon
+                style={{ marginBottom: 16 }}
+              />
+              <div style={{ padding: 16, background: '#f5f5f5', borderRadius: 8 }}>
+                <Paragraph style={{ whiteSpace: 'pre-wrap', marginBottom: 0 }}>
+                  {generatedBio}
+                </Paragraph>
+              </div>
+            </Card>
+
+            {generatedShortBio && (
+              <Card
+                title="短简介 (160字)"
+                extra={
+                  <Space>
+                    <Button
+                      type="default"
+                      icon={<CopyOutlined />}
+                      onClick={() => {
+                        navigator.clipboard.writeText(getCurrentShortBio());
+                        message.success('短简介已复制到剪贴板');
+                      }}
+                    >
+                      复制
+                    </Button>
+                    <Button
+                      type="default"
+                      icon={<GlobalOutlined />}
+                      onClick={() => {
+                        setShortBioLanguage(prev => prev === 'zh' ? 'en' : 'zh');
+                      }}
+                    >
+                      切换到{shortBioLanguage === 'zh' ? '英文' : '中文'}
+                    </Button>
+                    <Button
+                      type="primary"
+                      icon={<CheckCircleOutlined />}
+                      onClick={handleSyncToGitHub}
+                    >
+                      同步到 GitHub
+                    </Button>
+                  </Space>
+                }
               >
-                同步到 GitHub
-              </Button>
-            }
-          >
-            <Alert
-              message="生成成功"
-              type="success"
-              showIcon
-              style={{ marginBottom: 16 }}
-            />
-            <div style={{ padding: 16, background: '#f5f5f5', borderRadius: 8 }}>
-              <Paragraph style={{ whiteSpace: 'pre-wrap', marginBottom: 0 }}>
-                {generatedBio}
-              </Paragraph>
-            </div>
-          </Card>
+                <div style={{ padding: 16, background: '#f5f5f5', borderRadius: 8 }}>
+                  <Paragraph style={{ whiteSpace: 'pre-wrap', marginBottom: 0 }}>
+                    {getCurrentShortBio()}
+                  </Paragraph>
+                </div>
+              </Card>
+            )}
+          </Space>
         )}
       </Space>
     </div>
-  );
+  )
 };
 
 export default BioPage;

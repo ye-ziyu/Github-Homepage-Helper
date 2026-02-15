@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
 import { AuthService } from '../auth/auth.service';
+import { GitHubService } from '../auth/github.service';
 
 @Injectable()
 export class UserService {
@@ -9,6 +10,7 @@ export class UserService {
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
     private readonly authService: AuthService,
+    private readonly githubService: GitHubService,
   ) {}
 
   async getUserInfo(userId: string, refresh = false) {
@@ -31,7 +33,7 @@ export class UserService {
       throw new NotFoundException('User not found');
     }
 
-    const userInfo = {
+    let userInfo = {
       id: user.id,
       githubId: user.githubId,
       username: user.username,
@@ -51,6 +53,56 @@ export class UserService {
       createdAt: user.createdAt.toISOString(),
       updatedAt: user.updatedAt.toISOString(),
     };
+
+    // If refresh is true and user has GitHub token, fetch from GitHub API
+    if (refresh && user.githubToken) {
+      try {
+        console.log('Fetching latest user info from GitHub API...');
+        const githubUserInfo = await this.githubService.getUserInfo(user.githubToken);
+        if (githubUserInfo) {
+          console.log('GitHub API response:', githubUserInfo);
+          
+          // Update local database with latest info from GitHub
+          await this.prisma.user.update({
+            where: { id: userId },
+            data: {
+              displayName: githubUserInfo.name,
+              email: githubUserInfo.email,
+              bio: githubUserInfo.bio,
+              location: githubUserInfo.location,
+              blog: githubUserInfo.blog,
+              company: githubUserInfo.company,
+              twitterUsername: githubUserInfo.twitter_username,
+              avatarUrl: githubUserInfo.avatar_url,
+              followers: githubUserInfo.followers,
+              following: githubUserInfo.following,
+              publicRepos: githubUserInfo.public_repos,
+              lastSyncAt: new Date(),
+            },
+          });
+          console.log('Local database updated with latest GitHub info');
+
+          // Update userInfo object with latest data
+          userInfo = {
+            ...userInfo,
+            displayName: githubUserInfo.name,
+            email: githubUserInfo.email,
+            bio: githubUserInfo.bio,
+            location: githubUserInfo.location,
+            blog: githubUserInfo.blog,
+            company: githubUserInfo.company,
+            twitterUsername: githubUserInfo.twitter_username,
+            avatarUrl: githubUserInfo.avatar_url,
+            followers: githubUserInfo.followers,
+            following: githubUserInfo.following,
+            publicRepos: githubUserInfo.public_repos,
+          };
+        }
+      } catch (error) {
+        console.error('Error fetching user info from GitHub API:', error);
+        // If GitHub API call fails, continue with database data
+      }
+    }
 
     // Cache for 5 minutes
     await this.redis.set(cacheKey, JSON.stringify(userInfo), 300);

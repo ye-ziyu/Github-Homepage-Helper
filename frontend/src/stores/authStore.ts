@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { UserInfo } from '../types';
 import { authApi } from '../api';
+import { apiClient } from '../api/client';
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -13,6 +14,7 @@ interface AuthState {
   login: (token: string) => Promise<void>;
   logout: () => void;
   validateToken: () => Promise<void>;
+  updateGitHubToken: (githubToken: string) => Promise<void>;
   clearError: () => void;
 }
 
@@ -30,6 +32,9 @@ export const useAuthStore = create<AuthState>()(
         try {
           const response = await authApi.validateToken(token);
           if (response.isValid && response.userInfo) {
+            // Set token in apiClient for future requests
+            apiClient.setToken(response.jwtToken);
+            
             set({
               isAuthenticated: true,
               token: response.jwtToken,
@@ -51,6 +56,9 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: () => {
+        // Clear token from apiClient
+        apiClient.clearToken();
+        
         set({
           isAuthenticated: false,
           token: null,
@@ -78,6 +86,22 @@ export const useAuthStore = create<AuthState>()(
           }
         } catch (error) {
           get().logout();
+        }
+      },
+
+      updateGitHubToken: async (githubToken: string) => {
+        set({ isLoading: true, error: null });
+        try {
+          const response = await authApi.updateGitHubToken(githubToken);
+          if (response.success) {
+            // Refresh user info to get updated data
+            await get().validateToken();
+          }
+        } catch (error: any) {
+          set({
+            isLoading: false,
+            error: error.message || 'Failed to update GitHub token',
+          });
         }
       },
 

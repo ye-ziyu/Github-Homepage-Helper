@@ -27,6 +27,7 @@ model User {
   publicRepos      Int      @default(0)
   stars            Int      @default(0)
   languages        Json     @default("[]")
+  githubToken      String?  // Encrypted GitHub token
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   lastSyncAt       DateTime?

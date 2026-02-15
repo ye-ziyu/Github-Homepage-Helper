@@ -40,6 +40,7 @@ export class GitHubService {
     this.client = axios.create({
       baseURL: 'https://api.github.com',
       timeout: 10000,
+      httpsAgent: new (require('https').Agent)({ rejectUnauthorized: false }),
     });
   }
 
@@ -51,8 +52,13 @@ export class GitHubService {
         },
       });
       return response.data;
-    } catch (error) {
-      console.error('GitHub API error:', error);
+    } catch (error: any) {
+      console.error('GitHub API error:', error.response?.data || error.message);
+      // 详细记录错误信息以便调试
+      if (error.response) {
+        console.error('GitHub API error status:', error.response.status);
+        console.error('GitHub API error data:', error.response.data);
+      }
       return null;
     }
   }
@@ -111,14 +117,23 @@ export class GitHubService {
     },
   ): Promise<GitHubUserInfo> {
     try {
+      console.log('Updating GitHub profile with data:', data);
+      console.log('Using GitHub token:', token.substring(0, 10) + '...'); // Log first 10 chars for debugging
+      
       const response = await this.client.patch<GitHubUserInfo>('/user', data, {
         headers: {
           Authorization: `Bearer ${token}`,
+          Accept: 'application/vnd.github+json',
+          'X-GitHub-Api-Version': '2022-11-28',
         },
       });
+      
+      console.log('GitHub profile updated successfully:', response.data);
       return response.data;
-    } catch (error) {
-      console.error('GitHub API error:', error);
+    } catch (error: any) {
+      console.error('GitHub API error status:', error.response?.status);
+      console.error('GitHub API error data:', error.response?.data);
+      console.error('GitHub API error message:', error.message);
       throw new NotFoundException('Failed to update profile');
     }
   }

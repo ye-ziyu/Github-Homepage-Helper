@@ -21,6 +21,11 @@ export const authApi = {
       '/auth/validate',
       { token }
     ),
+  updateGitHubToken: (token: string) =>
+    apiClient.post<{ success: boolean; message: string }>(
+      '/auth/update-github-token',
+      { token }
+    ),
 };
 
 // User API

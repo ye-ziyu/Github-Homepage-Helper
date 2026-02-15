@@ -15,39 +15,65 @@ export class SyncService {
   ) {}
 
   async syncProfile(userId: string, syncProfileDto: SyncProfileDto) {
-    // Get user's GitHub token
-    // In production, retrieve encrypted token from database
-    const token = ''; // Get from database
+    try {
+      console.log('Syncing profile for user:', userId);
+      console.log('Profile data:', syncProfileDto);
+      
+      // Get user's GitHub token
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+      });
 
-    if (!token) {
-      throw new UnauthorizedException('GitHub token not found');
+      console.log('Found user:', user);
+      const token = user?.githubToken || '';
+      console.log('GitHub token:', token ? token.substring(0, 10) + '...' : 'No token found');
+
+      let updatedProfile = null;
+
+      // Only update GitHub profile if token is available
+      if (token) {
+        try {
+          console.log('Updating GitHub profile...');
+          // Update GitHub profile
+          updatedProfile = await this.githubService.updateProfile(token, {
+            bio: syncProfileDto.bio,
+            location: syncProfileDto.location,
+            blog: syncProfileDto.blog,
+            company: syncProfileDto.company,
+            twitter_username: syncProfileDto.twitterUsername,
+          });
+          console.log('GitHub profile updated successfully:', updatedProfile);
+        } catch (error) {
+          // If GitHub update fails, continue with local update
+          console.error('Failed to update GitHub profile:', error);
+        }
+      } else {
+        console.log('No GitHub token available, skipping GitHub update');
+      }
+
+      // Always update local database
+      console.log('Updating local database...');
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          bio: syncProfileDto.bio,
+          location: syncProfileDto.location,
+          blog: syncProfileDto.blog,
+          company: syncProfileDto.company,
+          twitterUsername: syncProfileDto.twitterUsername,
+        },
+      });
+      console.log('Local database updated successfully');
+
+      // Invalidate cache
+      await this.redis.del(`user:${userId}:info`);
+      console.log('Cache invalidated');
+
+      return { success: true, profile: updatedProfile };
+    } catch (error) {
+      console.error('Error syncing profile:', error);
+      return { success: false, error: 'Failed to sync profile' };
     }
-
-    // Update GitHub profile
-    const updatedProfile = await this.githubService.updateProfile(token, {
-      bio: syncProfileDto.bio,
-      location: syncProfileDto.location,
-      blog: syncProfileDto.blog,
-      company: syncProfileDto.company,
-      twitter_username: syncProfileDto.twitterUsername,
-    });
-
-    // Update local database
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        bio: syncProfileDto.bio,
-        location: syncProfileDto.location,
-        blog: syncProfileDto.blog,
-        company: syncProfileDto.company,
-        twitterUsername: syncProfileDto.twitterUsername,
-      },
-    });
-
-    // Invalidate cache
-    await this.redis.del(`user:${userId}:info`);
-
-    return { success: true, profile: updatedProfile };
   }
 
   async syncReadme(

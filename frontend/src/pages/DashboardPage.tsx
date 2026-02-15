@@ -41,7 +41,7 @@ const DashboardPage = () => {
 
   useEffect(() => {
     if (userInfo?.id) {
-      fetchUserInfo();
+      fetchUserInfo(true); // Force refresh from GitHub API
       fetchStats();
       fetchLanguages();
     }
@@ -84,7 +84,6 @@ const DashboardPage = () => {
               {user.bio && (
                 <Paragraph
                   style={{ marginTop: 16, marginBottom: 0 }}
-                  ellipsis={{ rows: 2 }}
                 >
                   {user.bio}
                 </Paragraph>
