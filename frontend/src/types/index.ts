@@ -146,6 +146,7 @@ export interface ImageConfig {
   expression?: string;
   backgroundColor?: string;
   size?: string;
+  model?: string;
 }
 
 export interface ImageGenerateRequest {

@@ -25,6 +25,7 @@ import {
 } from '@ant-design/icons';
 import { useAuthStore } from '../stores/authStore';
 import { useReadmeStore } from '../stores/readmeStore';
+import { syncApi } from '../api';
 import { ReadmeConfig, ReadmeTheme } from '../types';
 
 const { Title, Paragraph } = Typography;
@@ -103,12 +104,19 @@ const ReadmePage = () => {
     try {
       const repoName = prompt('请输入仓库名称 (如: username/username)', `${userInfo.username}/${userInfo.username}`);
       if (repoName) {
-        const [owner, repo] = repoName.split('/');
-        // await syncApi.readme({ owner, repo, content });
+        const parts = repoName.split('/');
+        const owner = parts[0] || userInfo.username;
+        const repo = parts[1] || userInfo.username;
+        await syncApi.readme({ 
+          owner, 
+          repo, 
+          content,
+          commitMessage: 'Update README.md via GitHub Profile Enhancer'
+        });
         message.success('README 已同步到 GitHub！');
       }
     } catch (error: any) {
-      message.error('同步失败: ' + error.message);
+      message.error('同步失败: ' + (error.response?.data?.message || error.message));
     }
   };
 

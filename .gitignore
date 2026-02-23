@@ -79,3 +79,6 @@ prisma/migrations/
 # Build artifacts
 *.tgz
 *.tar.gz
+
+# Project documentation (local only, not for version control)
+Creation and Introduction/

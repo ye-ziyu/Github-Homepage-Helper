@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ImageService } from './image.service';
 import { GenerateAvatarDto } from './dto/generate-avatar.dto';
@@ -14,7 +14,7 @@ export class ImageController {
   constructor(private readonly imageService: ImageService) {}
 
   @Post('generate-avatar')
-  @ApiOperation({ summary: 'Generate avatar (async)' })
+  @ApiOperation({ summary: 'Generate avatar using API Easy (async)' })
   async generateAvatar(
     @GetUser() user: any,
     @Body() generateAvatarDto: GenerateAvatarDto,
@@ -22,9 +22,21 @@ export class ImageController {
     return this.imageService.generateAvatar(user.id, generateAvatarDto);
   }
 
+  @Get('job-status/:jobId')
+  @ApiOperation({ summary: 'Get image generation job status' })
+  async getJobStatus(@Param('jobId') jobId: string) {
+    return this.imageService.getJobStatus(jobId);
+  }
+
   @Get('styles')
-  @ApiOperation({ summary: 'Get available styles' })
+  @ApiOperation({ summary: 'Get available avatar styles' })
   async getStyles() {
     return this.imageService.getStyles();
+  }
+
+  @Get('models')
+  @ApiOperation({ summary: 'Get available image generation models' })
+  async getModels() {
+    return this.imageService.getModels();
   }
 }

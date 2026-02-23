@@ -153,4 +153,80 @@ export class GitHubService {
       return { remaining: 0, limit: 5000 };
     }
   }
+
+  async getFileContent(
+    token: string,
+    owner: string,
+    repo: string,
+    path: string
+  ): Promise<{ sha: string; content: string } | null> {
+    try {
+      const response = await this.client.get(
+        `/repos/${owner}/${repo}/contents/${path}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: 'application/vnd.github+json',
+          },
+        }
+      );
+      return {
+        sha: response.data.sha,
+        content: response.data.content,
+      };
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        return null;
+      }
+      console.error('Get file content error:', error.response?.data || error.message);
+      throw error;
+    }
+  }
+
+  async updateFile(
+    token: string,
+    owner: string,
+    repo: string,
+    path: string,
+    contentBase64: string,
+    commitMessage: string
+  ): Promise<{ sha: string; url: string }> {
+    console.log(`Updating file: ${owner}/${repo}/${path}`);
+    console.log('Commit message:', commitMessage);
+
+    const existingFile = await this.getFileContent(token, owner, repo, path);
+    console.log('Existing file found:', existingFile ? 'Yes' : 'No');
+
+    const requestBody: any = {
+      message: commitMessage,
+      content: contentBase64,
+    };
+
+    if (existingFile?.sha) {
+      requestBody.sha = existingFile.sha;
+    }
+
+    try {
+      const response = await this.client.put(
+        `/repos/${owner}/${repo}/contents/${path}`,
+        requestBody,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: 'application/vnd.github+json',
+            'X-GitHub-Api-Version': '2022-11-28',
+          },
+        }
+      );
+
+      console.log('File updated successfully');
+      return {
+        sha: response.data.content?.sha || response.data.commit?.sha,
+        url: response.data.content?.html_url || response.data.commit?.html_url,
+      };
+    } catch (error: any) {
+      console.error('Update file error:', error.response?.data || error.message);
+      throw error;
+    }
+  }
 }

@@ -55,11 +55,16 @@ export const bioApi = {
   getTemplates: () => apiClient.get('/bio/templates'),
 };
 
-// Image API
+// Image API - Using API Easy for image generation
 export const imageApi = {
   generateAvatar: (data: ImageGenerateRequest) =>
     apiClient.post<AsyncJobResponse>('/image/generate-avatar', data),
+  getJobStatus: (jobId: string) =>
+    apiClient.get<{ status: string; progress: number; result: any; error: string }>(
+      `/image/job-status/${jobId}`
+    ),
   getStyles: () => apiClient.get('/image/styles'),
+  getModels: () => apiClient.get('/image/models'),
 };
 
 // README API

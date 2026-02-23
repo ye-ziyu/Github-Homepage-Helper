@@ -900,10 +900,10 @@ paths:
         - Image
       summary: 生成头像（异步）
       description: |
-        使用 OpenAI DALL-E 生成头像，异步处理。
+        使用 API易 生成头像，兼容 OpenAI 图像生成 API 格式。
 
         **生成时间**：约 10-30 秒
-        **成本**：$0.04/张
+        **配置要求**：需在 .env 中配置 API_EASY_KEY
       requestBody:
         required: true
         content:
@@ -919,6 +919,12 @@ paths:
                     style:
                       type: string
                       enum: [realistic, cartoon, pixel, illustration, minimal]
+                    model:
+                      type: string
+                      description: AI模型 (dall-e-3, dall-e-2)
+                    size:
+                      type: string
+                      description: 图片尺寸 (1024x1024, 1792x1024, 1024x1792)
                     gender:
                       type: string
                       enum: [male, female, neutral, undefined]
@@ -936,10 +942,6 @@ paths:
                     backgroundColor:
                       type: string
                       pattern: ^#[0-9A-Fa-f]{6}$
-                    size:
-                      type: string
-                userInfo:
-                  type: object
       responses:
         '202':
           description: 异步任务已创建
@@ -952,6 +954,51 @@ paths:
                     properties:
                       data:
                         $ref: '#/components/schemas/AsyncJobResponse'
+
+  /image/job-status/{jobId}:
+    get:
+      tags:
+        - Image
+      summary: 获取图片生成任务状态
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [pending, processing, completed, failed]
+                  progress:
+                    type: integer
+                  result:
+                    type: object
+                    properties:
+                      imageUrl:
+                        type: string
+                      prompt:
+                        type: string
+                      style:
+                        type: string
+                  error:
+                    type: string
+
+  /image/models:
+    get:
+      tags:
+        - Image
+      summary: 获取可用模型列表
+      responses:
+        '200':
+          description: 成功
 
   /image/styles:
     get:
