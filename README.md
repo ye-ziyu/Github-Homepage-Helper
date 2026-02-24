@@ -1,214 +1,324 @@
-# GitHub 个人形象增强器
+<div align="center">
 
-一个帮助 GitHub 用户使用 AI 生成个人简介、头像和 README 的 Web 应用。
+# GitHub Profile Enhancer
 
-## 功能特性
+**AI 驱动的 GitHub 个人形象增强器**
 
-- **个人简介生成**: 使用 AI（OpenAI GPT）根据用户信息生成个性化简介
-- **头像生成**: 使用 API易 的图像生成 API（兼容 DALL-E）生成独特的个人头像
-- **README 生成**: 自动生成专业的 GitHub 个人主页 README
-- **信息同步**: 将生成的内容同步到 GitHub 个人资料
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![React](https://img.shields.io/badge/React-18-blue.svg)](https://reactjs.org/)
+[![NestJS](https://img.shields.io/badge/NestJS-10-red.svg)](https://nestjs.com/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-blue.svg)](https://www.typescriptlang.org/)
 
-## 技术栈
+[功能特性](#-核心特性) · [工作原理](#工作原理) · [快速开始](#快速开始) · [项目结构](#项目结构)
 
-### 前端
-- React 18 + TypeScript
-- Vite 5
-- Ant Design 5
-- Zustand (状态管理)
-- React Query (数据获取)
-- Tailwind CSS
+</div>
 
-### 后端
-- NestJS 10
-- TypeScript
-- Prisma (ORM)
-- PostgreSQL (数据库)
-- Redis (缓存和任务状态)
-- BullMQ (任务队列)
+---
 
-## 快速开始
+## 👋 项目简介
 
-### 1. 克隆项目
+**GitHub Profile Enhancer** 是一款 **AI 驱动的 GitHub 个人主页美化工具**，通过智能分析您的 GitHub 数据，一键生成个性化的个人简介、炫酷头像和精美的 README，让您的 GitHub 主页焕然一新！
 
-```bash
-git clone <repository-url>
-cd github-helper
+### 🎯 解决三大核心痛点
+
+| 痛点 | 问题描述 | 解决方案 |
+|-----|---------|----------|
+| 😓 **个人主页"千篇一律"** | GitHub 主页平淡无奇，无法展现个性 | AI 分析您的 GitHub 数据，生成独特的个人简介 |
+| 🎨 **头像缺乏个性** | 默认头像缺乏个性，无法给访客留下印象 | 使用 AI 生成符合您风格的个性化头像 |
+| 📝 **README 编写困难** | 不知道如何写好个人主页 README | 一键生成包含动态横幅、技能徽章、统计图表等 |
+
+### ✨ 核心特性
+
+| 特性 | 描述 |
+|-----|------|
+| 🚀 **一键生成** | 基于您的 GitHub 数据，一键生成个性化的个人简介 |
+| 🎨 **AI 头像生成** | 支持多种风格的 AI 头像生成（Sora Image） |
+| 📝 **README 生成器** | 自动生成炫酷的个人主页 README |
+| 🔄 **实时同步** | 一键同步 README 到 GitHub 仓库 |
+| 📊 **GitHub 统计** | 展示您的 GitHub 统计数据和图表 |
+| 🎯 **技能徽章** | 自动识别并展示技术栈徽章 |
+| 🌙 **多主题支持** | 支持多种 README 主题风格 |
+| 💾 **配置保存** | 保存您的配置，方便下次使用 |
+
+---
+
+## 🔧 工作原理
+
+GitHub Profile Enhancer 通过分析用户的 GitHub 数据，结合 AI 技术生成个性化内容。
+
+### 核心流程
+
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│  GitHub OAuth   │────>│  数据获取        │────> │  AI 分析        │
+│  登录授权        │     │  (仓库/提交/star) │     │  生成个人简介    │
+└─────────────────┘     └─────────────────┘     └─────────────────┘
+                                                        │
+                                                        ▼
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│  GitHub 同步    │<────│  README 渲染     │<────│  内容定制        │
+│  一键发布        │     │  模板渲染        │      │  用户调整        │
+└─────────────────┘     └─────────────────┘     └─────────────────┘
 ```
 
-### 2. 启动开发环境
+### 技术实现
+
+1. **GitHub 数据采集**：
+   - 通过 GitHub API 获取用户信息、仓库、提交记录等
+   - 分析用户的编程语言偏好、技术栈
+   - 统计用户的活跃度和贡献度
+
+2. **AI 内容生成**：
+   - 基于 OpenAI API 生成个性化的个人简介
+   - 支持多种风格模板
+   - 智能匹配用户技术栈
+
+3. **AI 头像生成**：
+   - 集成 API易 Sora Image API
+   - 支持多种风格（动漫、写实、像素等）
+   - 高分辨率图片输出
+
+4. **README 渲染**：
+   - 基于 Markdown 模板引擎
+   - 动态横幅、技能徽章、统计图表
+   - 支持多种主题风格
+
+---
+
+## 🏗️ 技术架构
+
+项目采用前后端分离架构，由 React 前端和 NestJS 后端组成。
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│                         用户层                                │
+│              浏览器 ←→ React 前端 (Vite)                      │
+└────────────────────────────┬─────────────────────────────────┘
+                             │
+┌────────────────────────────▼─────────────────────────────────┐
+│                       服务层                                  │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
+│  │ 认证服务     │  │ GitHub 服务  │  │ AI 生成服务        │  │
+│  │ (OAuth)      │  │ (数据采集)   │  │ (OpenAI/API易)     │  │
+│  └─────────────┘  └─────────────┘  └─────────────────────┘  │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
+│  │ README 生成  │  │ 图片生成     │  │ 同步服务            │  │
+│  │ (模板引擎)   │  │ (队列处理)   │  │ (GitHub 发布)       │  │
+│  └─────────────┘  └─────────────┘  └─────────────────────┘  │
+└────────────────────────────┬─────────────────────────────────┘
+                             │
+┌────────────────────────────▼─────────────────────────────────┐
+│                       数据层                                  │
+│      PostgreSQL 16       │       Redis 7       │              │
+└──────────────────────────────────────────────────────────────┘
+```
+
+### 技术栈
+
+| 层级 | 技术选型 | 说明 |
+|-----|---------|------|
+| **前端** | React 18 + TypeScript + Vite + Ant Design | 现代化前端技术栈，提供良好的用户体验 |
+| **后端** | NestJS 10 + TypeScript + TypeORM | 企业级 Node.js 后端框架 |
+| **认证** | GitHub OAuth + JWT | GitHub 授权登录，安全可靠 |
+| **数据库** | PostgreSQL 16 | 关系型数据库存储用户配置 |
+| **缓存** | Redis 7 | 会话存储和限流控制 |
+| **AI 服务** | OpenAI + API易 | 内容生成和图片生成 |
+| **部署** | Docker + Docker Compose | 容器化部署，简化环境配置 |
+
+---
+
+## 🚀 快速开始
+
+### 环境要求
+
+| 依赖 | 版本要求 | 用途 |
+|-----|---------|------|
+| Node.js | 18+ | 前端和后端运行环境 |
+| Docker & Docker Compose | 最新版 | 容器化部署（推荐） |
+| PostgreSQL | 16+ | 关系型数据库 |
+| Redis | 7.0+ | 缓存和会话存储 |
+
+### 方式一：Docker 一键部署（推荐）
 
 ```bash
-# 启动 PostgreSQL 和 Redis
+# 1. 克隆项目
+git clone https://github.com/yourusername/github-profile-enhancer.git
+cd github-profile-enhancer
+
+# 2. 配置环境变量
+cp backend/.env.example backend/.env
+# 编辑 backend/.env 填写您的配置
+
+# 3. 启动服务
 docker-compose up -d
 
-# 等待数据库和 Redis 就绪...
+# 4. 访问应用
+# 前端: http://localhost:5173
+# 后端 API: http://localhost:3000
 ```
 
-### 3. 配置环境变量
+### 方式二：本地开发
 
-编辑 `backend/.env` 文件，填入必要的配置（详见下方环境变量说明）
-
-### 4. 启动后端
+#### 后端启动
 
 ```bash
+# 1. 进入后端目录
 cd backend
+
+# 2. 安装依赖
 npm install
-npx prisma generate
-npx prisma migrate dev
+
+# 3. 配置环境变量
+cp .env.example .env
+# 编辑 .env 填写配置
+
+# 4. 启动开发服务器
 npm run start:dev
 ```
 
-### 5. 启动前端
+#### 前端启动
 
 ```bash
+# 1. 进入前端目录
 cd frontend
+
+# 2. 安装依赖
 npm install
+
+# 3. 启动开发服务器
 npm run dev
 ```
 
-### 6. 访问应用
+### 环境变量配置
 
-打开浏览器访问: http://localhost:5173
+在 `backend/.env` 中配置以下参数：
 
-## 项目结构
+```env
+# 应用配置
+PORT=3000
+NODE_ENV=development
+
+# 数据库配置
+DB_HOST=localhost
+DB_PORT=5432
+DB_USERNAME=postgres
+DB_PASSWORD=your_password
+DB_DATABASE=github_helper
+
+# Redis 配置
+REDIS_HOST=localhost
+REDIS_PORT=6379
+
+# GitHub OAuth
+GITHUB_CLIENT_ID=your_github_client_id
+GITHUB_CLIENT_SECRET=your_github_client_secret
+GITHUB_CALLBACK_URL=http://localhost:3000/api/auth/github/callback
+
+# OpenAI
+OPENAI_API_KEY=your_openai_api_key
+OPENAI_BASE_URL=https://api.openai.com/v1
+
+# API易 (图片生成)
+APIYI_BASE_URL=https://api.apiyi.com
+APIYI_API_KEY=your_apiyi_api_key
+
+# JWT
+JWT_SECRET=your_jwt_secret
+JWT_EXPIRATION=7d
+
+# 前端地址
+FRONTEND_URL=http://localhost:5173
+```
+
+---
+
+## 📁 项目结构
 
 ```
-github-helper/
-├── frontend/              # 前端项目
+github-profile-enhancer/
+├── backend/                      # 后端服务
 │   ├── src/
-│   │   ├── components/   # 组件
-│   │   ├── pages/        # 页面
-│   │   ├── stores/       # 状态管理
-│   │   ├── api/          # API 客户端
-│   │   └── types/        # 类型定义
+│   │   ├── modules/              # 业务模块
+│   │   │   ├── auth/             # 认证模块 (GitHub OAuth)
+│   │   │   ├── github/           # GitHub 数据服务
+│   │   │   ├── profile/          # 个人简介生成
+│   │   │   ├── image/            # AI 头像生成
+│   │   │   ├── readme/           # README 生成
+│   │   │   └── sync/             # GitHub 同步
+│   │   ├── common/               # 公共模块
+│   │   ├── config/               # 配置文件
+│   │   └── main.ts               # 入口文件
 │   ├── package.json
-│   └── vite.config.ts
+│   └── .env.example
 │
-├── backend/              # 后端项目
+├── frontend/                     # 前端应用
 │   ├── src/
-│   │   ├── modules/      # 功能模块
-│   │   │   ├── bio/      # 个人简介生成 (使用 OpenAI GPT)
-│   │   │   ├── image/    # 头像生成 (使用 API易)
-│   │   │   ├── readme/   # README生成
-│   │   │   ├── sync/     # GitHub同步
-│   │   │   └── user/     # 用户管理
-│   │   ├── common/       # 公共模块
-│   │   └── main.ts
-│   ├── prisma/
-│   │   └── schema.prisma
+│   │   ├── components/           # React 组件
+│   │   ├── pages/                # 页面组件
+│   │   ├── api/                  # API 封装
+│   │   ├── stores/               # 状态管理 (Zustand)
+│   │   └── main.tsx              # 入口文件
 │   └── package.json
 │
-├── docker-compose.yml     # Docker Compose 配置
-└── README.md
+├── docker-compose.yml            # Docker 编排文件
+└── README.md                     # 项目文档
 ```
 
-## API 文档
+---
 
-启动后端服务后，访问: http://localhost:3000/api
+## 💡 使用指南
 
-## 开发指南
+### 1. 登录授权
 
-### 前端开发
+- 点击"登录"按钮
+- 授权 GitHub 访问权限
+- 完成登录，系统会自动获取您的 GitHub 数据
 
-```bash
-cd frontend
-npm run dev          # 启动开发服务器
-npm run build        # 构建生产版本
-npm run lint         # 代码检查
-```
+### 2. 生成个人简介
 
-### 后端开发
+- 进入"个人简介"页面
+- 选择风格和语言
+- 点击生成，AI 会基于您的 GitHub 数据生成简介
+- 可编辑生成的内容
 
-```bash
-cd backend
-npm run start:dev   # 启动开发服务器
-npm run build        # 构建生产版本
-npm run test         # 运行测试
-npx prisma studio    # 打开数据库管理界面
-```
+### 3. 生成 AI 头像
 
-## 环境变量说明
+- 进入"头像生成"页面
+- 选择模型和风格
+- 输入提示词（可选）
+- 点击生成，等待 AI 生成图片
+- 下载喜欢的头像
 
-### 必需配置
+### 4. 生成 README
 
-编辑 `backend/.env` 文件：
+- 进入"README 生成"页面
+- 选择主题风格
+- 配置要显示的模块（技能、统计、动态横幅等）
+- 预览生成的 README
+- 点击"同步到 GitHub"一键发布到您的仓库
 
-| 变量名 | 说明 | 示例值 |
-|--------|------|--------|
-| DATABASE_URL | PostgreSQL 连接字符串 | `postgresql://postgres:postgres@localhost:5432/github_helper` |
-| REDIS_URL | Redis 连接字符串 | `redis://localhost:6379` |
-| JWT_SECRET | JWT 密钥 | `your_jwt_secret_key_change_this_in_production` |
-| ENCRYPTION_KEY | 加密密钥 (32字节) | `abcdefghijklmnopqrstuvwxyz123456` |
+---
 
-### AI服务配置
+## 🤝 参与贡献
 
-#### 文本生成 (OpenAI - 用于个人简介)
+欢迎贡献代码、提交 Issue 和 Pull Request！
 
-| 变量名 | 说明 | 示例值 |
-|--------|------|--------|
-| OPENAI_API_KEY | OpenAI API 密钥 | `sk-proj-xxxxx` |
-| OPENAI_MODEL | GPT模型名称 | `gpt-4` 或 `gpt-3.5-turbo` |
+1. Fork 本项目
+2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
+3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
+4. 推送到分支 (`git push origin feature/AmazingFeature`)
+5. 开启 Pull Request
 
-#### 图片生成 (API易 - 用于头像生成) ⭐ 新增
+---
 
-| 变量名 | 说明 | 示例值 |
-|--------|------|--------|
-| **API_EASY_KEY** | API易 的 API Key | `your_api_easy_key` |
-| API_EASY_URL | API易 图像生成接口 | `https://api.apiyi.com/v1/images/generations` |
+## 📄 许可证
 
-### GitHub 配置
+本项目采用 MIT 许可证 - 详见 [LICENSE](LICENSE) 文件
 
-| 变量名 | 说明 | 必需 |
-|--------|------|------|
-| GITHUB_CLIENT_ID | GitHub OAuth 客户端 ID | 否 |
-| GITHUB_CLIENT_SECRET | GitHub OAuth 客户端密钥 | 否 |
+---
 
-### 其他配置
+<div align="center">
 
-| 变量名 | 说明 | 默认值 |
-|--------|------|--------|
-| API_PORT | 后端服务端口 | 3000 |
-| API_HOST | 后端服务绑定地址 | 0.0.0.0 |
-| NODE_ENV | 运行环境 | development |
-| CORS_ORIGIN | CORS 允许来源 | http://localhost:5173 |
+用 ❤️ 打造 | 由 AI 辅助开发
 
-## 获取 API Key
-
-### 获取 OpenAI API Key (文本生成必需)
-
-1. 访问 https://platform.openai.com
-2. 注册/登录账户
-3. 进入 API Keys 页面
-4. 创建新的 Secret Key
-5. 将 Key 填入 `backend/.env` 的 `OPENAI_API_KEY`
-
-### 获取 API易 Key (图片生成必需) ⭐ 新增
-
-1. 访问 https://api.apiyi.com
-2. 注册/登录账户
-3. 充值并获取 API Key
-4. 将 Key 填入 `backend/.env` 的 `API_EASY_KEY`
-
-> **注意**: API易 兼容 OpenAI 图像生成 API 格式，支持 DALL-E 3 等模型
-
-## 常见问题
-
-### Q: 头像生成失败怎么办？
-A: 请检查以下几点：
-1. 确保 `API_EASY_KEY` 已正确配置
-2. 确保 API易 账户有足够的余额
-3. 查看后端日志了解具体错误信息
-
-### Q: 如何更换图像生成模型？
-A: 在头像生成页面选择不同的 AI 模型（如 DALL-E 3、DALL-E 2）
-
-### Q: 生成的头像如何使用？
-A: 
-1. 点击"下载头像"保存图片
-2. 前往 GitHub 设置页面
-3. 上传下载的头像作为个人头像
-
-## 许可证
-
-MIT
+</div>
